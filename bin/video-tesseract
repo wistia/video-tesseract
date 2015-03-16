@@ -18,7 +18,7 @@ require 'mkmf'
 @verbose = false
 
 # This is where tmp data goes
-@data_dir = File.join(File.dirname(__FILE__), 'data')
+@data_dir = '/tmp/video-tesseract'
 
 
 optparse = OptionParser.new do |opts|
@@ -101,6 +101,10 @@ puts ''
 #
 # Step 0: Clear old data
 #
+
+# Make the data dir if it doesn't exist
+`mkdir -p #{@data_dir}`
+
 unless @save_old_data
   print 'Clearing old tesseract data ... '
   `rm #{@data_dir}/*`
@@ -172,4 +176,15 @@ puts "Generated all #{frames_per_tile} montages."
 print "Generating final tesseracted video: #{@output} ... "
 `ffmpeg -y -framerate #{@frame_rate} -i #{@data_dir}/montage_%d.png -c:v libx264 -r #{@frame_rate} -pix_fmt yuv420p #{@output} #{'2>&1' unless @verbose}`
 puts 'done'
+
+
+#
+# Step 4: Clear old data, again!
+#
+unless @save_old_data
+  print 'Clearing old tesseract data ... '
+  `rm #{@data_dir}/*`
+  puts 'done'
+end
+
 

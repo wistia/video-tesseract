@@ -10,17 +10,25 @@
 
 ```
 
-Want to tesseract your video? You've come to the right place.
+Want to tesseract your video? You've come to the right place, my friend.
 
 
 # Quickstart
 
+### Install it
+
 ```
-./tesseract my-video.mp4 -g 5x5 -s 320x180 -o tesseract.mp4
+gem install video_tesseract
 ```
 
-This will take your video (`my-video.mp4`) and tesseract it as a 5x5 grid where
-each tile is 320x180. The output video will be saves as `tesseract.mp4`
+### Run it
+
+```
+video-tesseract my-video.mp4 -g 5x5 -s 320x180 -o tesseract.mp4
+```
+
+This will take your video (`my-video.mp4`) and tesseract it into a 5x5 grid where
+each tile is 320x180. The output video will be saves as `tesseract.mp4`.
 
 
 # How it works
