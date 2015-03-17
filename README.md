@@ -28,7 +28,7 @@ video-tesseract my-video.mp4 -g 5x5 -s 320x180 -o tesseract.mp4
 ```
 
 This will take your video (`my-video.mp4`) and tesseract it into a 5x5 grid where
-each tile is 320x180. The output video will be saves as `tesseract.mp4`.
+each tile is 320x180. The output video will be saved as `tesseract.mp4`.
 
 
 # How it works
@@ -41,8 +41,8 @@ the demo here: http://videotesseract.com
 Here's what the script actually does:
 
 1. Extract every frame of the original video as a png.
-2. Tile some of these frames into a single montage image. This montage will
-   be a single frame in the final tesseracted video.
+2. Tile some of these frames into a single montage image. This montage is a
+   single frame in the final tesseracted video.
 3. Keep repeating step 2 with new frames from the original video until we've
    generated every frame we need for the tesseracted video.
 4. Compile the montage frames into the final tesseracted video.
@@ -63,6 +63,16 @@ On OSX:
 brew install ffmpeg
 brew install imagemagick
 ```
+
+
+# Building the gem
+
+This is mostly a note to self.
+
+1. Bump the version in the gemspec, commit it, push it.
+2. Git tag it: `git tag -a 0.1.0 -m 'Version 0.1.0'` and `git push origin 0.1.0`
+2. Build it: `gem build video_tesseract.gemspec`
+3. Ship it: `gem push video_tesseract`
 
 
 # MIT License
