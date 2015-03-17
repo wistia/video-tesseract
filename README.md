@@ -72,7 +72,7 @@ This is mostly a note to self.
 1. Bump the version in the gemspec, commit it, push it.
 2. Git tag it: `git tag -a 0.1.0 -m 'Version 0.1.0'` and `git push origin 0.1.0`
 2. Build it: `gem build video_tesseract.gemspec`
-3. Ship it: `gem push video_tesseract`
+3. Ship it: `gem push video_tesseract-0.1.0.gem`
 
 
 # MIT License
