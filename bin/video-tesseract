@@ -2,6 +2,7 @@
 
 require 'optparse'
 require 'mkmf'
+require 'tmpdir'
 
 @tile_width = 320
 @tile_height = 180
@@ -12,14 +13,9 @@ require 'mkmf'
 @rows = 5
 
 @input = nil
-@output = 'output.mp4'
+@output = 'tesseract.mp4'
 
-@save_old_data = false
 @verbose = false
-
-# This is where tmp data goes
-@data_dir = '/tmp/video-tesseract'
-
 
 optparse = OptionParser.new do |opts|
   opts.banner = "Usage: tesseract [options]"
@@ -28,7 +24,7 @@ optparse = OptionParser.new do |opts|
     @input = i
   end
 
-  opts.on('-o', '--output [output.mp4]', 'Path to write output tesseracted video (Defaults to output.mp4)') do |o|
+  opts.on('-o', '--output [tesseract.mp4]', 'Path to write output tesseracted video (Defaults to tesseract.mp4)') do |o|
     @output = o
   end
 
@@ -42,10 +38,6 @@ optparse = OptionParser.new do |opts|
 
   opts.on('-r', '--frame-rate [23.976]', 'Frame rate of the tesseracted video (Defaults to 23.976)') do |r|
     @frame_rate = r.to_f
-  end
-
-  opts.on('--[do-not-]save-old-data', 'Do not clear previous tesseract tmp data (Deletes old data by default)') do |save_data|
-    @save_old_data = save_data
   end
 
   opts.on('-v', '--[no-]verbose', 'Run verbosely') do |v|
@@ -80,111 +72,84 @@ unless find_executable('convert')
   abort
 end
 
+Dir.mktmpdir do |data_dir|
 
-# get the frame count for the video
-frames = `ffmpeg -i #{@input} -vcodec copy -acodec copy -f null /dev/null 2>&1 | grep 'frame=' | cut -f 2 -d ' '`.to_i
+  # get the frame count for the video
+  frames = `ffmpeg -i #{@input} -vcodec copy -acodec copy -f null /dev/null 2>&1 | grep 'frame=' | cut -f 2 -d ' '`.to_i
 
-tiles = @rows * @cols
-frames_per_tile = frames / tiles
-tesseract_width = @tile_width * @cols
-tesseract_height = @tile_height * @rows
-
-
-
-puts ''
-puts "Generating #{@cols}x#{@rows} tesseract with tile size #{@tile_width}x#{@tile_height}"
-puts "Tesseract video will be #{tesseract_width}x#{tesseract_height} with a duration of #{frames_per_tile} frames."
-puts ''
+  tiles = @rows * @cols
+  frames_per_tile = frames / tiles
+  tesseract_width = @tile_width * @cols
+  tesseract_height = @tile_height * @rows
 
 
 
-#
-# Step 0: Clear old data
-#
+  puts ''
+  puts "Generating #{@cols}x#{@rows} tesseract with tile size #{@tile_width}x#{@tile_height}"
+  puts "Tesseract video will be #{tesseract_width}x#{tesseract_height} with a duration of #{frames_per_tile} frames."
+  puts ''
 
-# Make the data dir if it doesn't exist
-`mkdir -p #{@data_dir}`
 
-unless @save_old_data
-  print 'Clearing old tesseract data ... '
-  `rm #{@data_dir}/*`
+
+  #
+  # Step 1: Extract all frames from the video
+  #
+  # Note: Skip this step if the we already have the frames extracted.
+
+  print "Extracting all frames of the video ... "
+  `ffmpeg -y -i #{@input} -vcodec png -s #{@tile_width}x#{@tile_height} -an -y #{data_dir}/frame_%d.png #{'2>&1' unless @verbose}`
   puts 'done'
-end
-
-
-#
-# Step 1: Extract all frames from the video
-#
-# Note: Skip this step if the we already have the frames extracted.
-
-print "Extracting all frames of the video into #{@data_dir} ... "
-if File.exist?("#{@data_dir}/frame_#{frames}.png")
-  puts "skipping extraction, found all frames for this video"
-else
-  `ffmpeg -y -i #{@input} -vcodec png -s #{@tile_width}x#{@tile_height} -an -y #{@data_dir}/frame_%d.png #{'2>&1' unless @verbose}`
-  puts 'done'
-end
 
 
 
-#
-# Step 2: Creating the montages from the frames
-#
-(1..frames_per_tile).each do |offset|
+  #
+  # Step 2: Creating the montages from the frames
+  #
+  (1..frames_per_tile).each do |offset|
 
-  images = (offset..frames).step(frames_per_tile).map { |idx| "#{@data_dir}/frame_#{idx}.png" }[0...tiles]
+    images = (offset..frames).step(frames_per_tile).map { |idx| "#{data_dir}/frame_#{idx}.png" }[0...tiles]
 
-  # how much to move each frame to the left as time goes on
-  x_shift = (offset / frames_per_tile.to_f) * @tile_width
+    # how much to move each frame to the left as time goes on
+    x_shift = (offset / frames_per_tile.to_f) * @tile_width
 
-  cmd = "convert -size #{tesseract_width}x#{tesseract_height} xc:black "
-  images.each_with_index do |image, idx|
-    x_offset = (idx % @cols) * @tile_width + x_shift
-    y_offset = (idx / @cols) * @tile_height
-    cmd << "#{image} -geometry +#{x_offset}+#{y_offset} -composite "
-
-    # if it's the last image in the row, repeat it in the row below to the left
-    # of the first image for that row
-    if idx % @cols == @cols - 1
-      x_offset = ((idx + 1) % @cols) * @tile_width + x_shift - @tile_width
-      y_offset = ((idx + 1) / @cols) * @tile_height
+    cmd = "convert -size #{tesseract_width}x#{tesseract_height} xc:black "
+    images.each_with_index do |image, idx|
+      x_offset = (idx % @cols) * @tile_width + x_shift
+      y_offset = (idx / @cols) * @tile_height
       cmd << "#{image} -geometry +#{x_offset}+#{y_offset} -composite "
+
+      # if it's the last image in the row, repeat it in the row below to the left
+      # of the first image for that row
+      if idx % @cols == @cols - 1
+        x_offset = ((idx + 1) % @cols) * @tile_width + x_shift - @tile_width
+        y_offset = ((idx + 1) / @cols) * @tile_height
+        cmd << "#{image} -geometry +#{x_offset}+#{y_offset} -composite "
+      end
     end
+
+    cmd << "#{data_dir}/montage_#{offset}.png"
+
+    if @verbose
+      puts cmd
+      puts ''
+    end
+
+    print "Generating montage #{offset}/#{frames_per_tile}\r"
+    $stdout.flush
+
+    system(cmd)
+
   end
-
-  cmd << "data/montage_#{offset}.png"
-
-  if @verbose
-    puts cmd
-    puts ''
-  end
-
-  print "Generating montage #{offset}/#{frames_per_tile}\r"
-  $stdout.flush
-
-  system(cmd)
-
-end
-puts "Generated all #{frames_per_tile} montages."
+  puts "Generated all #{frames_per_tile} montages."
 
 
 
-#
-# Step 3: Creating the tesseracted video from the montages
-#
+  #
+  # Step 3: Creating the tesseracted video from the montages
+  #
 
-print "Generating final tesseracted video: #{@output} ... "
-`ffmpeg -y -framerate #{@frame_rate} -i #{@data_dir}/montage_%d.png -c:v libx264 -r #{@frame_rate} -pix_fmt yuv420p #{@output} #{'2>&1' unless @verbose}`
-puts 'done'
-
-
-#
-# Step 4: Clear old data, again!
-#
-unless @save_old_data
-  print 'Clearing old tesseract data ... '
-  `rm #{@data_dir}/*`
+  print "Generating final tesseracted video: #{@output} ... "
+  `ffmpeg -y -framerate #{@frame_rate} -i #{data_dir}/montage_%d.png -c:v libx264 -r #{@frame_rate} -pix_fmt yuv420p #{@output} #{'2>&1' unless @verbose}`
   puts 'done'
+
 end
-
-
