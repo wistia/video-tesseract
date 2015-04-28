@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = 'video_tesseract'
-  s.version     = '0.1.1'
+  s.version     = '0.1.2'
   s.executables << 'video-tesseract'
   s.date        = '2015-03-16'
   s.summary     = 'Tesseract your videos'

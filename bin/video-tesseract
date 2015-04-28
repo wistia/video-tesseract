@@ -75,7 +75,13 @@ end
 Dir.mktmpdir do |data_dir|
 
   # get the frame count for the video
-  frames = `ffmpeg -i #{@input} -vcodec copy -acodec copy -f null /dev/null 2>&1 | grep 'frame=' | cut -f 2 -d ' '`.to_i
+  probe = `ffmpeg -i #{@input} -vcodec copy -acodec copy -f null /dev/null 2>&1`
+  if probe =~ /frame=.*?(\d+)/
+    frames = $1.to_i
+  else
+    puts 'Cannot determine the number of frames in the video'
+    abort
+  end
 
   tiles = @rows * @cols
   frames_per_tile = frames / tiles
